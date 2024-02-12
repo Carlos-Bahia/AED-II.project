@@ -1,26 +1,79 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "red-black.h"
 
 tree_rb null_node;
+
+void rb_search_remove(tree_rb tree, char *string){
+    if(tree == NULL){
+        return;
+    }
+
+    int cmp = strcmp(tree->value.producer, string);
+
+    if(cmp > 0){
+        rb_search_remove(tree->left, string);
+    } else if(cmp < 0){
+        rb_search_remove(tree->right, string);
+    } else{
+        remove_rb(&tree, tree->value);
+    }
+
+}
+
+void rb_search(tree_rb root, char *string, FILE *archive){
+     if(root == NULL){
+        return;
+    }
+
+    int cmp = strncmp(root->value.producer, string , strlen(string));
+
+    if(cmp > 0){
+        rb_search(root->left, string, archive);
+    } else if(cmp < 0){
+        rb_search(root->right, string, archive);
+    } else {
+
+        char line[1000];
+
+        fseek(archive, root->value.position, SEEK_SET);
+
+        fgets(line, sizeof(line), archive);
+
+        char *token;
+        char rotulos[5][20] = {"NOME", "AUTOR", "PRODUTOR", "DESCRIÇÃO", "ANO"};
+        token = strtok(line, "|");
+        int i = 0;
+        while (token != NULL && i < 5) {
+            printf("%s: %s\n", rotulos[i], token);
+            token = strtok(NULL, "|");
+            i++;
+        }
+
+        rb_search(root->left, string, archive);
+        rb_search(root->right, string, archive);
+    } 
+}
 
 void initialize_rb(tree_rb *root){
     *root = NULL;
     null_node = (tree_rb) malloc(sizeof(struct node_rb));
     null_node->color = DOUBLE_BLACK;
-    null_node->value = 0;
+    null_node->value.producer = " ";
+    null_node->value.position = -1;
     null_node->left = NULL;
     null_node->right = NULL;
 }
 
-void insert_rb(tree_rb *root, data_type value){
+void insert_rb(tree_rb *root, index_rb value){
     tree_rb position, father, new;
     position = *root;
     father = NULL;
 
     while(position != NULL){
         father = position;
-        if(value > position->value){
+        if(strcmp(value.producer, (*root)->value.producer) > 0){
             position = position->right;
         } else{
             position = position->left;
@@ -37,7 +90,7 @@ void insert_rb(tree_rb *root, data_type value){
     if(is_root(new)){
         *root = new;
     } else{
-        if(value > father->value){
+        if(strcmp(value.producer, new->father->value.producer) > 0){
             father->right = new;
         } else{
             father->left = new;
@@ -76,7 +129,7 @@ void balance_rb(tree_rb *root, tree_rb branch){
             continue;
         }
         if(branch_origin(branch) == 0 && branch_origin(branch->father) == 1){
-            rotate_simple_right_rb(root, branch->father);
+            rotate_simple_left_rb(root, branch->father);
             //Reduct to a simple case
             branch = branch->left;
             continue;
@@ -85,13 +138,13 @@ void balance_rb(tree_rb *root, tree_rb branch){
     (*root)->color = BLACK;
 }
 
-void remove_rb(tree_rb *root, data_type value){
+void remove_rb(tree_rb *root, index_rb value){
     tree_rb position = *root;
 
     while(position != NULL){
-        if(value > position->value){
+        if(strcmp(value.producer, (*root)->value.producer) > 0){
             position = position->right;
-        } else if(value < position->value){
+        } else if(strcmp(value.producer, (*root)->value.producer) < 0){
             position = position->left;
         } else{
             if(position->left != NULL && position->right != NULL){
@@ -315,6 +368,22 @@ void rotate_simple_left_rb(tree_rb *root, tree_rb pivot) {
             u->father->left = u;
         else
             u->father->right = u;
+}
+
+void rotate_double_right_rb(tree_rb *root, tree_rb pivot) {
+    if (pivot == NULL || pivot->left == NULL)
+        return;
+
+    rotate_simple_left_rb(root, pivot->left);
+    rotate_simple_right_rb(root, pivot);
+}
+
+void rotate_double_left_rb(tree_rb *root, tree_rb pivot) {
+    if (pivot == NULL || pivot->right == NULL)
+        return;
+
+    rotate_simple_right_rb(root, pivot->right);
+    rotate_simple_left_rb(root, pivot);
 }
 
 int branch_origin(tree_rb branch){

@@ -1,11 +1,64 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "avl.h"
 
-tree_avl insert_avl(tree_avl root, int value, int *insert_avl_factor){
+tree_avl avl_search_remove(tree_avl root, char *value){
+    if(root == NULL){
+        return NULL;
+    }
+
+    int cmp = strcmp(value, root->value->string);
+
+    if(cmp < 0){
+        return avl_search_remove(root->left, value);
+    } else if(cmp > 0){
+        return avl_search_remove(root->right, value);
+    } else {
+        return root;
+    } 
+}
+
+void avl_search(tree_avl root, char *value, FILE *archive){
+    if(root == NULL){
+        return;
+    }
+
+    int cmp = strncmp(value, root->value->string, strlen(value));
+
+    if(cmp < 0){
+        avl_search(root->left, value, archive);
+    } else if(cmp > 0){
+        avl_search(root->right, value, archive);
+    } else {
+
+        char line[1000];
+
+        fseek(archive, root->value->position, SEEK_SET);
+
+        fgets(line, sizeof(line), archive);
+
+        char *token;
+        char rotulos[5][20] = {"NOME", "AUTOR", "PRODUTOR", "DESCRIÇÃO", "ANO"};
+        token = strtok(line, "|");
+        int i = 0;
+        while (token != NULL && i < 5) {
+            printf("%s: %s\n", rotulos[i], token);
+            token = strtok(NULL, "|");
+            i++;
+        }
+
+        avl_search(root->left, value, archive);
+        avl_search(root->right, value, archive);
+    } 
+}
+
+tree_avl insert_avl(tree_avl root, index_avl value, int *insert_avl_factor){
     if(root == NULL){
         tree_avl new = (tree_avl) malloc(sizeof(node_avl));
-        new->value = value;
+        new->value = (index_avl *) malloc(sizeof(index_avl));
+        new->value->string = strdup(value.string);
+        new->value->position = value.position;
         new->factor = 0;
         new->left = NULL;
         new->right = NULL;
@@ -14,7 +67,7 @@ tree_avl insert_avl(tree_avl root, int value, int *insert_avl_factor){
         return new;
     }
 
-    if(value < root->value){
+    if (strcmp(value.string, root->value->string) < 0) {
         root->left = insert_avl(root->left, value, insert_avl_factor);
         if(*insert_avl_factor == 1){
             if(root->factor == 0){
@@ -161,12 +214,12 @@ int getFactor(tree_avl root){
     return root->factor;
 }
 
-tree_avl remove_avl(tree_avl root, int value, int *remove_avl_factor){
+tree_avl remove_avl(tree_avl root, index_avl value, int *remove_avl_factor){
     if(root == NULL){
         return root;
     }
 
-    if(value < root->value){
+    if (strcmp(value.string, root->value->string) < 0) {
         root->left = remove_avl(root->left,value, remove_avl_factor);
         if(*remove_avl_factor == 1){
             if(getFactor(root) == 1){
@@ -186,7 +239,7 @@ tree_avl remove_avl(tree_avl root, int value, int *remove_avl_factor){
             }
         }
     }
-    if(value > root->value){
+    if (strcmp(value.string, root->value->string) > 0) {
         root->right = remove_avl(root->right, value, remove_avl_factor);
         if(*remove_avl_factor == 1){
             if(getFactor(root) == -1){
@@ -206,7 +259,7 @@ tree_avl remove_avl(tree_avl root, int value, int *remove_avl_factor){
             }
         }
     }
-    if(value == root->value){
+    if (strcmp(value.string, root->value->string) == 0) {
         if((root->left == NULL && root->right == NULL) || root->left == NULL || root->right == NULL){
             if(root->right != NULL){
                 tree_avl temp = root;
@@ -225,7 +278,7 @@ tree_avl remove_avl(tree_avl root, int value, int *remove_avl_factor){
             tree_avl temp = root->left;
             temp = biggest_smallest_avl(temp);
             root->value = temp->value;
-            temp->value = value;
+            temp->value->string = value.string;
             root->left = remove_avl(root->left, value, remove_avl_factor);
             if(*remove_avl_factor){
                 if(getFactor(root) == -1){
@@ -261,21 +314,21 @@ tree_avl biggest_smallest_avl(tree_avl root){
 void print_avl(tree_avl root, int type){
     if(type == 1){ //PREORDER
         if(root != NULL){
-            printf("[%d]", root->value);
+            printf("[%s][%d]", root->value->string, root->value->position);
             print_avl(root->left, 1);
             print_avl(root->right, 1);
         }
     } else if(type == 2){ //INORDER
         if(root != NULL){
             print_avl(root->left, 2);
-            printf("[%d]", root->value);
+            printf("[%s][%d]", root->value->string, root->value->position);
             print_avl(root->right, 2);
         } 
     } else if(type == 3){ //POSORDER
         if(root != NULL){
             print_avl(root->left, 3);
             print_avl(root->right, 3);
-            printf("[%d]", root->value);
+            printf("[%s][%d]", root->value->string, root->value->position);
         } 
     }
 }
